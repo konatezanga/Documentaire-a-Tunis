@@ -13,21 +13,13 @@ import { SchedulePage } from './components/SchedulePage';
 import { AboutPage } from './components/AboutPage';
 import { Toaster } from './components/ui/sonner';
 
-import { getHello } from './api';
 
 export type Page = 'home' | 'login' | 'dashboard' | 'schedule' | 'about';
 
 const AppContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const [currentPage, setCurrentPage] = useState<Page>('home');
-  const [message, setMessage] = useState('');
 
-  // Fetch backend test message
-  useEffect(() => {
-    getHello()
-      .then(data => setMessage(data.message))
-      .catch(err => console.error(err));
-  }, []);
 
   // Redirect to dashboard after login
   useEffect(() => {
@@ -86,7 +78,6 @@ const AppContent: React.FC = () => {
     <div className="min-h-screen bg-[#0E0E0E] cinema-gradient text-white">
       <Header onNavigate={handleNavigation} />
       <main>{renderPage()}</main>
-      <div className="text-center mt-4 text-gray-400">{message}</div>
       <Toaster />
     </div>
   );

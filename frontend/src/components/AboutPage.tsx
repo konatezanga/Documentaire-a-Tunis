@@ -119,7 +119,7 @@ export const AboutPage: React.FC = () => {
                 <div className="flex items-start gap-3">
                   <MapPin className="w-5 h-5 text-[#C69B3A] mt-1 flex-shrink-0" />
                   <div>
-                    <p className="text-[#F5F2E7]">Avenue Habib Bourguiba</p>
+                    <p className="text-[#F5F2E7]">Avenue 12</p>
                     <p className="text-[#F5F2E7]/70">1000 Tunis, Tunisie</p>
                   </div>
                 </div>

@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card } from './ui/card';
 import { useAuth } from '../contexts/AuthContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
@@ -29,6 +29,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           className: 'bg-[#0E0E0E] border-[#C69B3A] text-[#F5F2E7]',
         });
         onLoginSuccess();
+        console.log("Résultat login:", success);
       } else {
         toast.error('Échec de connexion', {
           description: 'Email ou mot de passe incorrect',
@@ -67,7 +68,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="votre@email.com"
+                placeholder="votre@email.tn"
                 required
                 className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7] placeholder:text-[#F5F2E7]/40 focus:border-[#C69B3A]"
               />
@@ -98,7 +99,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </Button>
           </form>
 
-          <div className="mt-8 p-4 bg-[#0E0E0E]/30 rounded-lg border border-[#C69B3A]/20">
+          {/*<div className="mt-8 p-4 bg-[#0E0E0E]/30 rounded-lg border border-[#C69B3A]/20">
             <p className="text-xs text-[#F5F2E7]/60 mb-2">Comptes de démonstration :</p>
             <div className="space-y-1 text-xs text-[#C69B3A]/80">
               <p>admin@docatunis.tn</p>
@@ -108,7 +109,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               <p>jury1@docatunis.tn</p>
               <p className="mt-2 text-[#F5F2E7]/60">Mot de passe : password123</p>
             </div>
-          </div>
+          </div>*/}
         </Card>
       </div>
     </div>

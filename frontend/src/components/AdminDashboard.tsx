@@ -1,119 +1,134 @@
-import React, { useState } from 'react';
-import { Users, Film, Calendar, Award, Plus, Pencil, Trash2 } from 'lucide-react';
-import { Card } from './ui/card';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { useData } from '../contexts/DataContext';
-import { toast } from 'sonner@2.0.3';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from './ui/table';
-import { Badge } from './ui/badge';
+import React, { useState, useEffect } from "react";
+import { Users, Film, Calendar, Award, Plus, Pencil, Trash2 } from "lucide-react";
+import { Card } from "./ui/card";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { useData } from "../contexts/DataContext";
+import { toast } from "sonner";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { Badge } from "./ui/badge";
 
 export const AdminDashboard: React.FC = () => {
-  const { documentaries, screenings, juryMembers, ratings, users, addUser, updateUser, deleteUser } = useData();
+  const { documentaries = [], screenings = [], juryMembers = [], users = [], addUser, deleteUser, fetchUsers } = useData();
+
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [newUser, setNewUser] = useState({
-    email: '',
-    firstName: '',
-    lastName: '',
-    role: 'jury_member'
+    email: "",
+    firstName: "",
+    lastName: "",
+    role: "jury_member",
   });
+
+  // Assurer que les users viennent de la base Laravel au chargement
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'admin':
-        return 'bg-[#C69B3A] text-[#0E0E0E]';
-      case 'inspection_manager':
-        return 'bg-[#1B2430] text-[#F5F2E7]';
-      case 'production_manager':
-        return 'bg-[#A62C21] text-[#F5F2E7]';
-      case 'jury_president':
-        return 'bg-[#d4a855] text-[#0E0E0E]';
-      case 'jury_member':
-        return 'bg-[#2a2a2a] text-[#F5F2E7]';
+      case "admin":
+        return "bg-[#C69B3A] text-[#0E0E0E]";
+      case "inspection_manager":
+        return "bg-[#1B2430] text-[#F5F2E7]";
+      case "production_manager":
+        return "bg-[#A62C21] text-[#F5F2E7]";
+      case "jury_president":
+        return "bg-[#d4a855] text-[#0E0E0E]";
+      case "jury_member":
+        return "bg-[#2a2a2a] text-[#F5F2E7]";
       default:
-        return 'bg-gray-500 text-white';
+        return "bg-gray-500 text-white";
     }
   };
 
   const getRoleLabel = (role: string) => {
     switch (role) {
-      case 'admin':
-        return 'Administrateur';
-      case 'inspection_manager':
-        return 'Responsable des inspections';
-      case 'production_manager':
-        return 'Responsable de la production';
-      case 'jury_president':
-        return 'Président du jury';
-      case 'jury_member':
-        return 'Membre du jury';
+      case "admin":
+        return "Administrateur";
+      case "inspection_manager":
+        return "Responsable des inspections";
+      case "production_manager":
+        return "Responsable de la production";
+      case "jury_president":
+        return "Président du jury";
+      case "jury_member":
+        return "Membre du jury";
       default:
         return role;
     }
   };
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (!newUser.email || !newUser.firstName || !newUser.lastName) {
-      toast.error('Erreur', {
-        description: 'Veuillez remplir tous les champs',
-        className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
-      });
+      toast.error("Veuillez remplir tous les champs");
       return;
     }
 
-    addUser(newUser);
-    toast.success('Utilisateur créé', {
-      description: `${newUser.firstName} ${newUser.lastName} a été ajouté avec succès`,
-      className: 'bg-[#0E0E0E] border-[#C69B3A] text-[#F5F2E7]',
-    });
-    setIsAddUserOpen(false);
-    setNewUser({ email: '', firstName: '', lastName: '', role: 'jury_member' });
+    try {
+      // Ici on envoie l'utilisateur à Laravel via fetch
+      const token = localStorage.getItem("docatunis_token");
+      const res = await fetch("http://localhost:8000/api/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newUser),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Erreur création user:", text);
+        toast.error("Impossible de créer l'utilisateur");
+        return;
+      }
+
+      const createdUser = await res.json();
+      addUser(createdUser); // mettre à jour le state local
+      toast.success(`${createdUser.firstName} ${createdUser.lastName} a été ajouté avec succès`);
+      setIsAddUserOpen(false);
+      setNewUser({ email: "", firstName: "", lastName: "", role: "jury_member" });
+    } catch (error) {
+      console.error(error);
+      toast.error("Une erreur est survenue lors de la création de l'utilisateur");
+    }
   };
 
-  const handleDeleteUser = (id: string, name: string) => {
-    if (window.confirm(`Êtes-vous sûr de vouloir supprimer ${name} ?`)) {
-      deleteUser(id);
-      toast.success('Utilisateur supprimé', {
-        className: 'bg-[#0E0E0E] border-[#C69B3A] text-[#F5F2E7]',
+  const handleDeleteUser = async (id: string, name: string) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer ${name} ?`)) return;
+
+    try {
+      const token = localStorage.getItem("docatunis_token");
+      const res = await fetch(`http://localhost:8000/api/users${id}`, {
+        method: "DELETE",
+        headers: { 
+          Authorization: `Bearer ${token}` 
+        },
       });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Erreur suppression user:", text);
+        toast.error("Impossible de supprimer l'utilisateur");
+        return;
+      }
+
+      deleteUser(id);
+      toast.success(`Utilisateur ${name} supprimé`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur lors de la suppression de l'utilisateur");
     }
   };
 
   const stats = [
-    {
-      label: 'Documentaires',
-      value: documentaries.length,
-      icon: Film,
-      color: 'from-[#C69B3A] to-[#d4a855]'
-    },
-    {
-      label: 'Projections',
-      value: screenings.length,
-      icon: Calendar,
-      color: 'from-[#1B2430] to-[#2a3a4a]'
-    },
-    {
-      label: 'Membres du jury',
-      value: juryMembers.length,
-      icon: Award,
-      color: 'from-[#A62C21] to-[#c63a2e]'
-    },
-    {
-      label: 'Utilisateurs',
-      value: users.length,
-      icon: Users,
-      color: 'from-[#8b7355] to-[#a68968]'
-    }
+    { label: "Documentaires", value: documentaries.length, icon: Film, color: "from-[#C69B3A] to-[#d4a855]" },
+    { label: "Projections", value: screenings.length, icon: Calendar, color: "from-[#1B2430] to-[#2a3a4a]" },
+    { label: "Membres du jury", value: juryMembers.length, icon: Award, color: "from-[#A62C21] to-[#c63a2e]" },
+    { label: "Utilisateurs", value: users.length, icon: Users, color: "from-[#8b7355] to-[#a68968]" },
   ];
 
   return (
@@ -137,7 +152,9 @@ export const AdminDashboard: React.FC = () => {
                   <p className="text-[#F5F2E7]/60 text-sm mb-1">{stat.label}</p>
                   <p className="text-3xl text-[#F5F2E7]">{stat.value}</p>
                 </div>
-                <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${stat.color} flex items-center justify-center glow-gold`}>
+                <div
+                  className={`w-14 h-14 rounded-full bg-gradient-to-br ${stat.color} flex items-center justify-center glow-gold`}
+                >
                   <stat.icon className="w-7 h-7 text-[#F5F2E7]" />
                 </div>
               </div>
@@ -155,8 +172,10 @@ export const AdminDashboard: React.FC = () => {
             <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-[#C69B3A] text-[#0E0E0E] hover:bg-[#d4a855] glow-gold-hover">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Ajouter un utilisateur
+                  <span className="flex items-center">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Ajouter un utilisateur
+                  </span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="bg-[#1B2430] border-[#C69B3A]/30 text-[#F5F2E7]">
@@ -169,7 +188,7 @@ export const AdminDashboard: React.FC = () => {
                     <Input
                       value={newUser.email}
                       onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                      placeholder="email@example.com"
+                      placeholder="email@example.tn"
                       className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7]"
                     />
                   </div>
@@ -193,7 +212,10 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[#F5F2E7]">Rôle</Label>
-                    <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
+                    <Select
+                      value={newUser.role ?? "jury_member"}
+                      onValueChange={(value: string) => setNewUser((prev) => ({ ...prev, role: value }))}
+                    >
                       <SelectTrigger className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7]">
                         <SelectValue />
                       </SelectTrigger>
@@ -229,41 +251,41 @@ export const AdminDashboard: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id} className="border-[#C69B3A]/10 hover:bg-[#C69B3A]/5">
-                    <TableCell className="text-[#F5F2E7]">
-                      {user.firstName} {user.lastName}
-                    </TableCell>
-                    <TableCell className="text-[#F5F2E7]/70">{user.email}</TableCell>
-                    <TableCell>
-                      <Badge className={getRoleBadgeColor(user.role)}>
-                        {getRoleLabel(user.role)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-[#F5F2E7]/70">
-                      {new Date(user.createdAt).toLocaleDateString('fr-FR')}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-[#C69B3A] hover:bg-[#C69B3A]/10"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleDeleteUser(user.id, `${user.firstName} ${user.lastName}`)}
-                          className="text-[#A62C21] hover:bg-[#A62C21]/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                {users.length > 0 ? (
+                  users.map((user) => (
+                    <TableRow key={user.id} className="border-[#C69B3A]/10 hover:bg-[#C69B3A]/5">
+                      <TableCell className="text-[#F5F2E7]">{user.firstName} {user.lastName}</TableCell>
+                      <TableCell className="text-[#F5F2E7]/70">{user.email}</TableCell>
+                      <TableCell>
+                        <Badge className={getRoleBadgeColor(user.role)}>{getRoleLabel(user.role)}</Badge>
+                      </TableCell>
+                      <TableCell className="text-[#F5F2E7]/70">
+                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString("fr-FR") : "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button size="icon" variant="ghost" className="text-[#C69B3A] hover:bg-[#C69B3A]/10">
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleDeleteUser(user.id, `${user.firstName} ${user.lastName}`)}
+                            className="text-[#A62C21] hover:bg-[#A62C21]/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-[#F5F2E7]/70 py-4">
+                      Aucun utilisateur trouvé
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </div>
