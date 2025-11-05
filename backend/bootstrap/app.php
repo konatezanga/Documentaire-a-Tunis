@@ -13,7 +13,6 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-  // problème avec Middleware dans la function withMiddleware (c'est souligné en rouge)
     ->withMiddleware(function (Middleware $middleware): void {
         // Middleware global (si besoin)
         $middleware->prepend(CorsMiddleware::class);

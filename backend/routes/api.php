@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\DocumentaryController;
 
 // Routes d'authentification
 Route::post('/login', [AuthController::class, 'login']);
@@ -20,4 +21,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::delete('/users/{id}', [AdminUserController::class, 'destroy']);
 });
 
-
+Route::middleware(['auth:sanctum', 'role:inspection_manager'])->group(function () {
+    Route::post('/documentaries', [DocumentaryController::class, 'store']);
+    Route::get('/documentaries', [DocumentaryController::class, 'index']); 
+});

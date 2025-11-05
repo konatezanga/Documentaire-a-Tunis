@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
-import { toast } from "sonner"; // Optionnel si on veut des notifications
+import { toast } from "sonner";
 
 type User = {
   id: string;
@@ -11,9 +11,24 @@ type User = {
   createdAt?: string;
 };
 
-type Documentary = {
+export type Documentary = {
   id: string;
+  code: string;
   title: string;
+  date: string;
+  subject: string;
+  realisateur: {
+    code: string;
+    firstName: string;
+    lastName: string;
+    birthDate: string;
+  };
+  producteur: {
+    code: string;
+    firstName: string;
+    lastName: string;
+    birthDate: string;
+  };
 };
 
 type Screening = {
@@ -38,6 +53,9 @@ type DataContextType = {
   fetchDocumentaries: () => void;
   fetchScreenings: () => void;
   fetchJuryMembers: () => void;
+  addDocumentary: (documentaryData: any) => Promise<void>;
+  updateDocumentary: (id: string, documentaryData: any) => Promise<void>;
+  deleteDocumentary: (id: string) => Promise<void>;
 };
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -90,8 +108,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addUser = (user: User) => setUsers((prev) => [user, ...prev]);
-  const deleteUser = (id: string) => setUsers((prev) => prev.filter((u) => u.id !== id));
+  const addUser = (user: User) => setUsers((prev: User[]) => [user, ...prev]);
+  const deleteUser = (id: string) => setUsers((prev: User[]) => prev.filter((u) => u.id !== id));
 
   //  DOCUMENTARIES
   const fetchDocumentaries = async () => {
@@ -141,6 +159,115 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Méthodes pour les documentaires
+  const addDocumentary = async (documentaryData: any) => {
+  try {
+    const token = localStorage.getItem("docatunis_token");
+    
+    console.log('Envoi des données au serveur:', documentaryData); // Debug
+    
+    const response = await fetch('http://localhost:8000/api/documentaries', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(documentaryData),
+    });
+
+    console.log('Statut de réponse:', response.status); // Debug
+
+    if (!response.ok) {
+      let errorMessage = `Erreur ${response.status} lors de l'ajout du documentaire`;
+      
+      try {
+        const errorData = await response.json();
+        console.log('Erreurs détaillées du serveur:', errorData); // Debug
+        
+        if (errorData.errors) {
+          // Laravel validation errors
+          const validationErrors = Object.entries(errorData.errors)
+            .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+            .join('; ');
+          errorMessage = `Erreurs de validation: ${validationErrors}`;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch (jsonError) {
+        // Si la réponse n'est pas du JSON
+        const text = await response.text();
+        errorMessage = `Erreur serveur: ${text.substring(0, 200)}`;
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    console.log('Réponse réussie:', data); // Debug
+    
+    setDocumentaries((prev: Documentary[]) => [...prev, data.documentary]);
+    return data;
+    
+  } catch (error) {
+    console.error('Erreur complète dans addDocumentary:', error);
+    throw error; 
+  }
+};
+
+  const updateDocumentary = async (id: string, documentaryData: any) => {
+    try {
+      const token = localStorage.getItem("docatunis_token");
+      
+      const response = await fetch(`http://localhost:8000/api/documentaries/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(documentaryData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la modification du documentaire');
+      }
+
+      const data = await response.json();
+      
+      // Mettre à jour le documentaire dans l'état local
+      setDocumentaries((prev: Documentary[]) => prev.map(doc => 
+        doc.id === id ? data.documentary : doc
+      ));
+      
+    } catch (error) {
+      console.error('Erreur:', error);
+      throw error;
+    }
+  };
+
+  const deleteDocumentary = async (id: string) => {
+    try {
+      const token = localStorage.getItem("docatunis_token");
+      
+      const response = await fetch(`http://localhost:8000/api/documentaries/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la suppression du documentaire');
+      }
+
+      // Supprimer le documentaire de l'état local
+      setDocumentaries((prev: Documentary[]) => prev.filter(doc => doc.id !== id));
+      
+    } catch (error) {
+      console.error('Erreur:', error);
+      throw error;
+    }
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -154,6 +281,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         fetchDocumentaries,
         fetchScreenings,
         fetchJuryMembers,
+        addDocumentary, 
+        updateDocumentary,
+        deleteDocumentary,
       }}
     >
       {children}

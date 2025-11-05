@@ -5,8 +5,9 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { useData, Documentary } from '../contexts/DataContext';
-import { toast } from 'sonner@2.0.3';
+import { useData } from '../contexts/DataContext';
+import type { Documentary } from '../contexts/DataContext';
+import { toast } from 'sonner';
 import {
   Table,
   TableBody,
@@ -25,14 +26,14 @@ export const InspectionDashboard: React.FC = () => {
     title: '',
     date: '',
     subject: '',
-    directorCode: '',
-    directorFirstName: '',
-    directorLastName: '',
-    directorBirthDate: '',
-    producerCode: '',
-    producerFirstName: '',
-    producerLastName: '',
-    producerBirthDate: ''
+    realisateurCode: '',
+    realisateurFirstName: '',
+    realisateurLastName: '',
+    realisateurBirthDate: '',
+    producteurCode: '',
+    producteurFirstName: '',
+    producteurLastName: '',
+    producteurBirthDate: ''
   });
 
   const resetForm = () => {
@@ -41,70 +42,90 @@ export const InspectionDashboard: React.FC = () => {
       title: '',
       date: '',
       subject: '',
-      directorCode: '',
-      directorFirstName: '',
-      directorLastName: '',
-      directorBirthDate: '',
-      producerCode: '',
-      producerFirstName: '',
-      producerLastName: '',
-      producerBirthDate: ''
+      realisateurCode: '',
+      realisateurFirstName: '',
+      realisateurLastName: '',
+      realisateurBirthDate: '',
+      producteurCode: '',
+      producteurFirstName: '',
+      producteurLastName: '',
+      producteurBirthDate: ''
     });
     setIsAdding(false);
     setEditingId(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    // Validation
-    if (!formData.code || !formData.title || !formData.date || !formData.subject) {
-      toast.error('Erreur', {
-        description: 'Veuillez remplir tous les champs obligatoires du film',
-        className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
-      });
-      return;
-    }
+  // Validation complète
+  const requiredFields = [
+    { value: formData.code, field: 'Code Film' },
+    { value: formData.title, field: 'Titre' },
+    { value: formData.date, field: 'Date' },
+    { value: formData.subject, field: 'Sujet' },
+    { value: formData.realisateurCode, field: 'Code Réalisateur' },
+    { value: formData.realisateurFirstName, field: 'Prénom Réalisateur' },
+    { value: formData.realisateurLastName, field: 'Nom Réalisateur' },
+    { value: formData.realisateurBirthDate, field: 'Date de naissance Réalisateur' },
+    { value: formData.producteurCode, field: 'Code Producteur' },
+    { value: formData.producteurFirstName, field: 'Prénom Producteur' },
+    { value: formData.producteurLastName, field: 'Nom Producteur' },
+    { value: formData.producteurBirthDate, field: 'Date de naissance Producteur' },
+  ];
 
-    // Check for duplicate code
-    const isDuplicate = documentaries.some(
-      doc => doc.code === formData.code && doc.id !== editingId
-    );
-    if (isDuplicate) {
-      toast.error('Code déjà existant', {
-        description: 'Ce code de film est déjà utilisé',
-        className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
-      });
-      return;
-    }
+  const missingFields = requiredFields.filter(field => !field.value);
+  
+  if (missingFields.length > 0) {
+    toast.error('Erreur de validation', {
+      description: `Champs obligatoires manquants: ${missingFields.map(f => f.field).join(', ')}`,
+      className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
+    });
+    return;
+  }
 
+  // Check for duplicate code
+  const isDuplicate = documentaries.some(
+    doc => doc.code === formData.code && doc.id !== editingId
+  );
+  if (isDuplicate) {
+    toast.error('Code déjà existant', {
+      description: 'Ce code de film est déjà utilisé',
+      className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
+    });
+    return;
+  }
+
+  try {
     const docData = {
       code: formData.code,
       title: formData.title,
       date: formData.date,
       subject: formData.subject,
-      director: {
-        code: formData.directorCode,
-        firstName: formData.directorFirstName,
-        lastName: formData.directorLastName,
-        birthDate: formData.directorBirthDate
+      realisateur: {
+        code: formData.realisateurCode,
+        firstName: formData.realisateurFirstName,
+        lastName: formData.realisateurLastName,
+        birthDate: formData.realisateurBirthDate
       },
-      producer: {
-        code: formData.producerCode,
-        firstName: formData.producerFirstName,
-        lastName: formData.producerLastName,
-        birthDate: formData.producerBirthDate
+      producteur: {
+        code: formData.producteurCode,
+        firstName: formData.producteurFirstName,
+        lastName: formData.producteurLastName,
+        birthDate: formData.producteurBirthDate
       }
     };
 
+    console.log('Données préparées pour envoi:', docData);
+
     if (editingId) {
-      updateDocumentary(editingId, docData);
+      await updateDocumentary(editingId, docData);
       toast.success('Film modifié', {
         description: 'Le documentaire a été mis à jour avec succès',
         className: 'bg-[#0E0E0E] border-[#C69B3A] text-[#F5F2E7]',
       });
     } else {
-      addDocumentary(docData);
+      await addDocumentary(docData);
       toast.success('Film enregistré', {
         description: 'Le documentaire a été ajouté avec succès',
         className: 'bg-[#0E0E0E] border-[#C69B3A] text-[#F5F2E7]',
@@ -112,7 +133,13 @@ export const InspectionDashboard: React.FC = () => {
     }
 
     resetForm();
-  };
+  } catch (error: any) {
+    toast.error('Erreur', {
+      description: error.message || 'Une erreur est survenue',
+      className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
+    });
+  }
+};
 
   const handleEdit = (doc: Documentary) => {
     setFormData({
@@ -120,14 +147,14 @@ export const InspectionDashboard: React.FC = () => {
       title: doc.title,
       date: doc.date,
       subject: doc.subject,
-      directorCode: doc.director.code,
-      directorFirstName: doc.director.firstName,
-      directorLastName: doc.director.lastName,
-      directorBirthDate: doc.director.birthDate,
-      producerCode: doc.producer.code,
-      producerFirstName: doc.producer.firstName,
-      producerLastName: doc.producer.lastName,
-      producerBirthDate: doc.producer.birthDate
+      realisateurCode: doc.realisateur.code,
+      realisateurFirstName: doc.realisateur.firstName,
+      realisateurLastName: doc.realisateur.lastName,
+      realisateurBirthDate: doc.realisateur.birthDate,
+      producteurCode: doc.producteur.code,
+      producteurFirstName: doc.producteur.firstName,
+      producteurLastName: doc.producteur.lastName,
+      producteurBirthDate: doc.producteur.birthDate
     });
     setEditingId(doc.id);
     setIsAdding(true);
@@ -206,7 +233,7 @@ export const InspectionDashboard: React.FC = () => {
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label className="text-[#F5F2E7]">Sujet *</Label>
+                    <Label className="text-[#F5F2E7]">Sujet <span className='text-red'>*</span></Label>
                     <Textarea
                       value={formData.subject}
                       onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
@@ -225,8 +252,8 @@ export const InspectionDashboard: React.FC = () => {
                   <div className="space-y-2">
                     <Label className="text-[#F5F2E7]">Code</Label>
                     <Input
-                      value={formData.directorCode}
-                      onChange={(e) => setFormData({ ...formData, directorCode: e.target.value })}
+                      value={formData.realisateurCode}
+                      onChange={(e) => setFormData({ ...formData, realisateurCode: e.target.value })}
                       placeholder="DIR001"
                       className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7]"
                     />
@@ -235,24 +262,24 @@ export const InspectionDashboard: React.FC = () => {
                     <Label className="text-[#F5F2E7]">Date de naissance</Label>
                     <Input
                       type="date"
-                      value={formData.directorBirthDate}
-                      onChange={(e) => setFormData({ ...formData, directorBirthDate: e.target.value })}
+                      value={formData.realisateurBirthDate}
+                      onChange={(e) => setFormData({ ...formData, realisateurBirthDate: e.target.value })}
                       className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7]"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[#F5F2E7]">Prénom</Label>
                     <Input
-                      value={formData.directorFirstName}
-                      onChange={(e) => setFormData({ ...formData, directorFirstName: e.target.value })}
+                      value={formData.realisateurFirstName}
+                      onChange={(e) => setFormData({ ...formData, realisateurFirstName: e.target.value })}
                       className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7]"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[#F5F2E7]">Nom</Label>
                     <Input
-                      value={formData.directorLastName}
-                      onChange={(e) => setFormData({ ...formData, directorLastName: e.target.value })}
+                      value={formData.realisateurLastName}
+                      onChange={(e) => setFormData({ ...formData, realisateurLastName: e.target.value })}
                       className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7]"
                     />
                   </div>
@@ -266,8 +293,8 @@ export const InspectionDashboard: React.FC = () => {
                   <div className="space-y-2">
                     <Label className="text-[#F5F2E7]">Code</Label>
                     <Input
-                      value={formData.producerCode}
-                      onChange={(e) => setFormData({ ...formData, producerCode: e.target.value })}
+                      value={formData.producteurCode}
+                      onChange={(e) => setFormData({ ...formData, producteurCode: e.target.value })}
                       placeholder="PROD001"
                       className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7]"
                     />
@@ -276,24 +303,24 @@ export const InspectionDashboard: React.FC = () => {
                     <Label className="text-[#F5F2E7]">Date de naissance</Label>
                     <Input
                       type="date"
-                      value={formData.producerBirthDate}
-                      onChange={(e) => setFormData({ ...formData, producerBirthDate: e.target.value })}
+                      value={formData.producteurBirthDate}
+                      onChange={(e) => setFormData({ ...formData, producteurBirthDate: e.target.value })}
                       className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7]"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[#F5F2E7]">Prénom</Label>
                     <Input
-                      value={formData.producerFirstName}
-                      onChange={(e) => setFormData({ ...formData, producerFirstName: e.target.value })}
+                      value={formData.producteurFirstName}
+                      onChange={(e) => setFormData({ ...formData, producteurFirstName: e.target.value })}
                       className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7]"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[#F5F2E7]">Nom</Label>
                     <Input
-                      value={formData.producerLastName}
-                      onChange={(e) => setFormData({ ...formData, producerLastName: e.target.value })}
+                      value={formData.producteurLastName}
+                      onChange={(e) => setFormData({ ...formData, producteurLastName: e.target.value })}
                       className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7]"
                     />
                   </div>
@@ -352,7 +379,7 @@ export const InspectionDashboard: React.FC = () => {
                       <TableCell className="text-[#C69B3A]">{doc.code}</TableCell>
                       <TableCell className="text-[#F5F2E7]">{doc.title}</TableCell>
                       <TableCell className="text-[#F5F2E7]/70">
-                        {doc.director.firstName} {doc.director.lastName}
+                        {doc.realisateur.firstName} {doc.realisateur.lastName}
                       </TableCell>
                       <TableCell className="text-[#F5F2E7]/70">
                         {new Date(doc.date).toLocaleDateString('fr-FR')}
