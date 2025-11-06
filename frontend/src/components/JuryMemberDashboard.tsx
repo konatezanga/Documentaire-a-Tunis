@@ -15,8 +15,8 @@ export const JuryMemberDashboard: React.FC = () => {
     })
     .sort((a, b) => new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime());
 
-  const getDocumentary = (id: string) => {
-    return documentaries.find(d => d.id === id);
+  const getDocumentary = (id: string | number) => {
+    return documentaries.find(d => String(d.id) === String(id));
   };
 
   return (
@@ -29,8 +29,8 @@ export const JuryMemberDashboard: React.FC = () => {
         </div>
 
         {/* Welcome Card */}
-        <Card className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-8 mb-8 spotlight-card text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-[#C69B3A]/20 mb-4 glow-gold">
+        <Card className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-8 mb-8 text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-[#C69B3A]/20 mb-4">
             <Film className="w-10 h-10 text-[#C69B3A]" />
           </div>
           <h2 className="text-2xl mb-2 text-[#C69B3A]">Bienvenue au Festival</h2>
@@ -56,7 +56,7 @@ export const JuryMemberDashboard: React.FC = () => {
                 return (
                   <Card
                     key={screening.id}
-                    className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6 spotlight-card hover:border-[#C69B3A]/50 transition-all"
+                    className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6 hover:border-[#C69B3A]/50 transition-all"
                   >
                     <div className="flex flex-col md:flex-row gap-6">
                       <div className="flex-1">
@@ -74,13 +74,13 @@ export const JuryMemberDashboard: React.FC = () => {
                           <div>
                             <p className="text-[#C69B3A] mb-1">Réalisateur</p>
                             <p className="text-[#F5F2E7]">
-                              {doc.director.firstName} {doc.director.lastName}
+                              {doc.realisateur.firstName} {doc.realisateur.lastName}
                             </p>
                           </div>
                           <div>
                             <p className="text-[#C69B3A] mb-1">Producteur</p>
                             <p className="text-[#F5F2E7]">
-                              {doc.producer.firstName} {doc.producer.lastName}
+                              {doc.producteur.firstName} {doc.producteur.lastName}
                             </p>
                           </div>
                         </div>
@@ -140,10 +140,10 @@ export const JuryMemberDashboard: React.FC = () => {
               {documentaries.map((doc) => (
                 <Card
                   key={doc.id}
-                  className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6 spotlight-card hover:border-[#C69B3A]/50 transition-all"
+                  className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6 hover:border-[#C69B3A]/50 transition-all"
                 >
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-[#C69B3A]/20 flex items-center justify-center flex-shrink-0 glow-gold">
+                    <div className="w-12 h-12 rounded-full bg-[#C69B3A]/20 flex items-center justify-center flex-shrink-0">
                       <Film className="w-6 h-6 text-[#C69B3A]" />
                     </div>
                     <div className="flex-1">
@@ -157,22 +157,22 @@ export const JuryMemberDashboard: React.FC = () => {
                         <div>
                           <p className="text-xs text-[#C69B3A] mb-2">Réalisateur</p>
                           <p className="text-[#F5F2E7]">
-                            {doc.director.firstName} {doc.director.lastName}
+                            {doc.realisateur.firstName} {doc.realisateur.lastName}
                           </p>
-                          {doc.director.birthDate && (
+                          {doc.realisateur.birthDate && (
                             <p className="text-xs text-[#F5F2E7]/60 mt-1">
-                              Né(e) le {new Date(doc.director.birthDate).toLocaleDateString('fr-FR')}
+                              Né(e) le {new Date(doc.realisateur.birthDate).toLocaleDateString('fr-FR')}
                             </p>
                           )}
                         </div>
                         <div>
                           <p className="text-xs text-[#C69B3A] mb-2">Producteur</p>
                           <p className="text-[#F5F2E7]">
-                            {doc.producer.firstName} {doc.producer.lastName}
+                            {doc.producteur.firstName} {doc.producteur.lastName}
                           </p>
-                          {doc.producer.birthDate && (
+                          {doc.producteur.birthDate && (
                             <p className="text-xs text-[#F5F2E7]/60 mt-1">
-                              Né(e) le {new Date(doc.producer.birthDate).toLocaleDateString('fr-FR')}
+                              Né(e) le {new Date(doc.producteur.birthDate).toLocaleDateString('fr-FR')}
                             </p>
                           )}
                         </div>

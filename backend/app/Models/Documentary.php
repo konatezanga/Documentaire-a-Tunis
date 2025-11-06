@@ -22,4 +22,9 @@ class Documentary extends Model
     {
         return $this->belongsTo(Producteur::class);
     }
+
+    public function screenings()
+    {
+        return $this->hasMany(Screening::class);
+    }
 }

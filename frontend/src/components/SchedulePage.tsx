@@ -1,22 +1,52 @@
-import React from 'react';
+import React, { useEffect } from 'react'; // Ajoutez useEffect
 import { Calendar, MapPin, Clock, Film } from 'lucide-react';
 import { Card } from './ui/card';
 import { useData } from '../contexts/DataContext';
 import { Badge } from './ui/badge';
 
 export const SchedulePage: React.FC = () => {
-  const { documentaries, screenings } = useData();
+  const { documentaries, screenings, fetchDocumentaries, fetchScreenings } = useData();
 
-  // Only show published screenings
+  // Charger les données au montage du composant
+  useEffect(() => {
+    fetchDocumentaries();
+    fetchScreenings();
+  }, [fetchDocumentaries, fetchScreenings]);
+
+  // DEBUG: Afficher les données
+  useEffect(() => {
+    console.log("Documentaires chargés:", documentaries);
+    console.log("Projections chargées:", screenings);
+    console.log("Projections publiées:", screenings.filter(s => s.isPublished));
+  
+  // Debug des IDs
+  console.log("IDs des documentaires:", documentaries.map(d => ({ id: d.id, type: typeof d.id })));
+  console.log("IDs des documentaires dans les projections:", screenings.map(s => ({ 
+    screeningId: s.id, 
+    documentaryId: s.documentaryId, 
+    type: typeof s.documentaryId 
+  })));
+}, [documentaries, screenings]);
+
+  // DEBUG: Afficher les données
+  useEffect(() => {
+    console.log("Documentaires chargés:", documentaries);
+    console.log("Projections chargées:", screenings);
+    console.log("Projections publiées:", screenings.filter(s => s.isPublished));
+  }, [documentaries, screenings]);
+
+  // Montre seulement les projections publiées, triées par date et heure
   const publishedScreenings = screenings
     .filter(s => s.isPublished)
     .sort((a, b) => new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime());
 
-  const getDocumentary = (id: string) => {
-    return documentaries.find(d => d.id === id);
-  };
+  const getDocumentary = (id: string | number) => {
+  const doc = documentaries.find(d => String(d.id) === String(id));
+  console.log(`Recherche documentaire ${id} (type: ${typeof id}):`, doc);
+  return doc;
+};
 
-  // Group screenings by date
+  // Grouper les projections par date
   const groupedByDate = publishedScreenings.reduce((acc, screening) => {
     const date = screening.date;
     if (!acc[date]) {
@@ -27,6 +57,12 @@ export const SchedulePage: React.FC = () => {
   }, {} as { [key: string]: typeof publishedScreenings });
 
   const dates = Object.keys(groupedByDate).sort();
+
+  console.log("Données pour affichage:", { // Debug
+    publishedScreenings,
+    groupedByDate,
+    dates
+  });
 
   return (
     <div className="min-h-screen pt-24 pb-12 px-4">
@@ -80,6 +116,12 @@ export const SchedulePage: React.FC = () => {
               Le programme des projections sera bientôt disponible.
               Revenez régulièrement pour découvrir la programmation complète du festival.
             </p>
+            {/* Debug info */}
+            <div className="mt-4 p-4 bg-[#0E0E0E]/30 rounded-lg">
+              <p className="text-sm text-[#F5F2E7]/40">
+                Debug: {screenings.length} projections totales, {publishedScreenings.length} publiées
+              </p>
+            </div>
           </Card>
         ) : (
           <div className="space-y-12">
@@ -107,7 +149,19 @@ export const SchedulePage: React.FC = () => {
                 <div className="grid gap-4">
                   {groupedByDate[date].map((screening) => {
                     const doc = getDocumentary(screening.documentaryId);
-                    if (!doc) return null;
+                    
+                    // Si le documentaire n'est pas trouvé, afficher un message d'erreur
+                    if (!doc) {
+                      console.error(`Documentaire non trouvé pour la projection ${screening.id}`, screening);
+                      return (
+                        <Card key={screening.id} className="bg-[#1B2430]/50 border-[#A62C21]/50 p-6">
+                          <div className="text-center text-[#A62C21]">
+                            <p>Erreur: Documentaire introuvable (ID: {screening.documentaryId})</p>
+                            <p className="text-sm">Salle: {screening.room} | Heure: {screening.time}</p>
+                          </div>
+                        </Card>
+                      );
+                    }
 
                     const now = new Date();
                     const screeningDate = new Date(screening.date + ' ' + screening.time);
@@ -151,7 +205,7 @@ export const SchedulePage: React.FC = () => {
                               <div className="flex-1">
                                 <h3 className="text-xl mb-2 text-[#C69B3A]">{doc.title}</h3>
                                 <p className="text-sm text-[#F5F2E7]/60 mb-3">
-                                  Réalisé par {doc.director.firstName} {doc.director.lastName}
+                                  Réalisé par {doc.realisateur.firstName} {doc.realisateur.lastName}
                                 </p>
                                 <p className="text-[#F5F2E7]/80 line-clamp-2">
                                   {doc.subject}
@@ -164,7 +218,7 @@ export const SchedulePage: React.FC = () => {
                                 Code: {doc.code}
                               </span>
                               <span className="px-3 py-1 bg-[#0E0E0E]/50 rounded-full border border-[#C69B3A]/20">
-                                Producteur: {doc.producer.firstName} {doc.producer.lastName}
+                                Producteur: {doc.producteur.firstName} {doc.producteur.lastName}
                               </span>
                             </div>
                           </div>

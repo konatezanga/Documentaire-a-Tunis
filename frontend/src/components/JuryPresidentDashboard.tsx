@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
-import { Award, Save } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Award, Save, Users } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
 import { useData } from '../contexts/DataContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import {
   Table,
   TableBody,
@@ -17,9 +16,14 @@ import {
 import { Badge } from './ui/badge';
 
 export const JuryPresidentDashboard: React.FC = () => {
-  const { documentaries, screenings, juryMembers, ratings, addRating } = useData();
-  const [selectedScreening, setSelectedScreening] = useState<string | null>(null);
+  const { documentaries, screenings, juryMembers, ratings, addRating, fetchRatings } = useData();
+  const [selectedScreening, setSelectedScreening] = useState<string | number | null>(null);
   const [scores, setScores] = useState<{ [key: string]: string }>({});
+
+  // Charger les notes au montage
+  useEffect(() => {
+    fetchRatings();
+  }, [fetchRatings]);
 
   // Filter past screenings
   const now = new Date();
@@ -28,26 +32,25 @@ export const JuryPresidentDashboard: React.FC = () => {
     return screeningDate < now;
   });
 
-  const getDocumentary = (id: string) => {
-    return documentaries.find(d => d.id === id);
+  const getDocumentary = (id: string | number) => {
+    return documentaries.find(d => String(d.id) === String(id));
   };
 
-  const getScreeningRatings = (screeningId: string) => {
-    return ratings.filter(r => r.screeningId === screeningId);
+  const getScreeningRatings = (screeningId: string | number) => {
+    return ratings.filter(r => String(r.screeningId) === String(screeningId));
   };
 
-  const hasRatings = (screeningId: string) => {
+  const hasRatings = (screeningId: string | number) => {
     return getScreeningRatings(screeningId).length > 0;
   };
 
-  const handleSubmitRatings = (screeningId: string) => {
+  const handleSubmitRatings = async (screeningId: string | number) => {
     // Validate all jury members have scores
-    const missingScores = juryMembers.filter(member => !scores[member.id] || scores[member.id] === '');
+    const missingScores = juryMembers.filter(member => !scores[String(member.id)] || scores[String(member.id)] === '');
     
     if (missingScores.length > 0) {
       toast.error('Notes incomplètes', {
         description: `Veuillez attribuer une note à tous les membres du jury`,
-        className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
       });
       return;
     }
@@ -61,35 +64,55 @@ export const JuryPresidentDashboard: React.FC = () => {
     if (invalidScores) {
       toast.error('Notes invalides', {
         description: 'Les notes doivent être entre 0 et 100',
-        className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
       });
       return;
     }
 
-    // Save all ratings
-    juryMembers.forEach(member => {
-      addRating({
-        screeningId,
-        juryMemberId: member.id,
-        score: parseFloat(scores[member.id])
+    try {
+      // Save all ratings
+      for (const member of juryMembers) {
+        await addRating({
+          screeningId,
+          juryMemberId: member.id,
+          score: parseFloat(scores[String(member.id)])
+        });
+      }
+
+      toast.success('Notes enregistrées', {
+        description: 'Les notes du jury ont été enregistrées avec succès',
       });
-    });
 
-    toast.success('Notes enregistrées', {
-      description: 'Les notes du jury ont été enregistrées avec succès',
-      className: 'bg-[#0E0E0E] border-[#C69B3A] text-[#F5F2E7]',
-    });
-
-    setSelectedScreening(null);
-    setScores({});
+      setSelectedScreening(null);
+      setScores({});
+    } catch (error) {
+      toast.error('Erreur', {
+        description: 'Une erreur est survenue lors de l\'enregistrement',
+      });
+    }
   };
 
-  const getAverageScore = (screeningId: string) => {
+  const getAverageScore = (screeningId: string | number) => {
     const screeningRatings = getScreeningRatings(screeningId);
     if (screeningRatings.length === 0) return null;
     
     const total = screeningRatings.reduce((sum, rating) => sum + rating.score, 0);
     return (total / screeningRatings.length).toFixed(2);
+  };
+
+  // Fonction pour gérer la sélection d'une projection
+  const handleSelectScreening = (screeningId: string | number) => {
+    setSelectedScreening(screeningId);
+  };
+
+  // Fonction pour obtenir le titre du documentaire de manière sécurisée
+  const getSelectedScreeningTitle = (): string => {
+    if (!selectedScreening) return '';
+    
+    const screening = screenings.find(s => String(s.id) === String(selectedScreening));
+    if (!screening) return '';
+    
+    const doc = getDocumentary(screening.documentaryId);
+    return doc?.title || 'Titre non disponible';
   };
 
   return (
@@ -102,57 +125,71 @@ export const JuryPresidentDashboard: React.FC = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6 spotlight-card">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#C69B3A] to-[#d4a855] flex items-center justify-center glow-gold">
-                <Award className="w-7 h-7 text-[#0E0E0E]" />
+              <div className="w-12 h-12 rounded-full bg-[#C69B3A]/20 flex items-center justify-center">
+                <Award className="w-6 h-6 text-[#C69B3A]" />
               </div>
               <div>
-                <p className="text-3xl text-[#F5F2E7]">{pastScreenings.length}</p>
-                <p className="text-[#F5F2E7]/60">Projections terminées</p>
+                <p className="text-2xl text-[#F5F2E7]">{pastScreenings.length}</p>
+                <p className="text-[#F5F2E7]/60 text-sm">Projections terminées</p>
               </div>
             </div>
           </Card>
 
-          <Card className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6 spotlight-card">
+          <Card className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#1B2430] to-[#2a3a4a] flex items-center justify-center glow-gold">
-                <Award className="w-7 h-7 text-[#C69B3A]" />
+              <div className="w-12 h-12 rounded-full bg-[#C69B3A]/20 flex items-center justify-center">
+                <Users className="w-6 h-6 text-[#C69B3A]" />
               </div>
               <div>
-                <p className="text-3xl text-[#F5F2E7]">
+                <p className="text-2xl text-[#F5F2E7]">{juryMembers.length}</p>
+                <p className="text-[#F5F2E7]/60 text-sm">Membres du jury</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-[#C69B3A]/20 flex items-center justify-center">
+                <Award className="w-6 h-6 text-[#C69B3A]" />
+              </div>
+              <div>
+                <p className="text-2xl text-[#F5F2E7]">
                   {pastScreenings.filter(s => hasRatings(s.id)).length}
                 </p>
-                <p className="text-[#F5F2E7]/60">Films notés</p>
+                <p className="text-[#F5F2E7]/60 text-sm">Films notés</p>
               </div>
             </div>
           </Card>
 
-          <Card className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6 spotlight-card">
+          <Card className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#A62C21] to-[#c63a2e] flex items-center justify-center glow-gold">
-                <Award className="w-7 h-7 text-[#F5F2E7]" />
+              <div className="w-12 h-12 rounded-full bg-[#A62C21]/20 flex items-center justify-center">
+                <Award className="w-6 h-6 text-[#A62C21]" />
               </div>
               <div>
-                <p className="text-3xl text-[#F5F2E7]">{juryMembers.length}</p>
-                <p className="text-[#F5F2E7]/60">Membres du jury</p>
+                <p className="text-2xl text-[#F5F2E7]">
+                  {pastScreenings.filter(s => !hasRatings(s.id)).length}
+                </p>
+                <p className="text-[#F5F2E7]/60 text-sm">En attente</p>
               </div>
             </div>
           </Card>
         </div>
 
         {/* Rating Form */}
-        {selectedScreening ? (
-          <Card className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6 mb-8 spotlight-card">
+        {selectedScreening && (
+          <Card className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6 mb-8">
             <h2 className="text-2xl mb-6 text-[#C69B3A]">
-              Saisie des notes - {getDocumentary(screenings.find(s => s.id === selectedScreening)?.documentaryId || '')?.title}
+              Saisie des notes - {getSelectedScreeningTitle()}
             </h2>
             <div className="space-y-4">
               <div className="border border-[#C69B3A]/20 rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-[#C69B3A]/20 hover:bg-[#C69B3A]/5">
+                    <TableRow className="border-[#C69B3A]/20">
                       <TableHead className="text-[#C69B3A]">Membre du jury</TableHead>
                       <TableHead className="text-[#C69B3A]">Expertise</TableHead>
                       <TableHead className="text-[#C69B3A]">Note (sur 100)</TableHead>
@@ -160,7 +197,7 @@ export const JuryPresidentDashboard: React.FC = () => {
                   </TableHeader>
                   <TableBody>
                     {juryMembers.map((member) => (
-                      <TableRow key={member.id} className="border-[#C69B3A]/10">
+                      <TableRow key={String(member.id)} className="border-[#C69B3A]/10">
                         <TableCell className="text-[#F5F2E7]">
                           {member.firstName} {member.lastName}
                         </TableCell>
@@ -171,8 +208,11 @@ export const JuryPresidentDashboard: React.FC = () => {
                             min="0"
                             max="100"
                             step="0.1"
-                            value={scores[member.id] || ''}
-                            onChange={(e) => setScores({ ...scores, [member.id]: e.target.value })}
+                            value={scores[String(member.id)] || ''}
+                            onChange={(e) => setScores({ 
+                              ...scores, 
+                              [String(member.id)]: e.target.value 
+                            })}
                             placeholder="0-100"
                             className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7] max-w-[150px]"
                           />
@@ -186,7 +226,7 @@ export const JuryPresidentDashboard: React.FC = () => {
               <div className="flex gap-4">
                 <Button
                   onClick={() => handleSubmitRatings(selectedScreening)}
-                  className="bg-[#C69B3A] text-[#0E0E0E] hover:bg-[#d4a855] glow-gold-hover"
+                  className="bg-[#C69B3A] text-[#0E0E0E] hover:bg-[#d4a855]"
                 >
                   <Save className="w-4 h-4 mr-2" />
                   Enregistrer les notes
@@ -204,10 +244,10 @@ export const JuryPresidentDashboard: React.FC = () => {
               </div>
             </div>
           </Card>
-        ) : null}
+        )}
 
         {/* Screenings List */}
-        <Card className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6 spotlight-card">
+        <Card className="bg-[#1B2430]/50 border-[#C69B3A]/20 p-6">
           <h2 className="text-2xl mb-6 text-[#C69B3A]">Projections à noter</h2>
           {pastScreenings.length === 0 ? (
             <div className="text-center py-12">
@@ -217,7 +257,7 @@ export const JuryPresidentDashboard: React.FC = () => {
             <div className="border border-[#C69B3A]/20 rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-[#C69B3A]/20 hover:bg-[#C69B3A]/5">
+                  <TableRow className="border-[#C69B3A]/20">
                     <TableHead className="text-[#C69B3A]">Film</TableHead>
                     <TableHead className="text-[#C69B3A]">Date</TableHead>
                     <TableHead className="text-[#C69B3A]">Heure</TableHead>
@@ -234,8 +274,8 @@ export const JuryPresidentDashboard: React.FC = () => {
                     const avgScore = getAverageScore(screening.id);
 
                     return (
-                      <TableRow key={screening.id} className="border-[#C69B3A]/10 hover:bg-[#C69B3A]/5">
-                        <TableCell className="text-[#F5F2E7]">{doc?.title}</TableCell>
+                      <TableRow key={String(screening.id)} className="border-[#C69B3A]/10">
+                        <TableCell className="text-[#F5F2E7]">{doc?.title || 'Documentaire non trouvé'}</TableCell>
                         <TableCell className="text-[#F5F2E7]/70">
                           {new Date(screening.date).toLocaleDateString('fr-FR')}
                         </TableCell>
@@ -253,7 +293,7 @@ export const JuryPresidentDashboard: React.FC = () => {
                           {!isRated && (
                             <Button
                               size="sm"
-                              onClick={() => setSelectedScreening(screening.id)}
+                              onClick={() => handleSelectScreening(screening.id)}
                               className="bg-[#C69B3A] text-[#0E0E0E] hover:bg-[#d4a855]"
                             >
                               Saisir les notes
