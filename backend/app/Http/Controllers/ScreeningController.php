@@ -19,6 +19,7 @@ class ScreeningController extends Controller
             $formattedScreenings = $screenings->map(function($screening) {
                 return [
                     'id' =>(string) $screening->id,
+                    'title' => $screening->documentary->title,
                     'documentaryId' =>(string) $screening->documentary_id,
                     'date' => $screening->date->format('Y-m-d'),
                     'time' => $screening->time,
@@ -46,6 +47,9 @@ class ScreeningController extends Controller
         DB::beginTransaction();
         
         try {
+
+            Log::info('[ScreeningStore] Début de la création', $request->all());
+
             $validator = Validator::make($request->all(), [
                 'documentaryId' => 'required|exists:documentaries,id',
                 'date' => 'required|date|after_or_equal:today',
@@ -55,10 +59,19 @@ class ScreeningController extends Controller
             ]);
 
             if ($validator->fails()) {
+                Log::error('[ScreeningStore] Validation failed', $validator->errors()->toArray());
                 return response()->json([
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
+            }
+
+            // RÉCUPÉRER LE DOCUMENTAIRE POUR AVOIR SON TITRE
+            $documentary = Documentary::find($request->documentaryId);
+            if (!$documentary) {
+                return response()->json([
+                    'message' => 'Documentaire non trouvé'
+                ], 404);
             }
 
             // Vérifier les conflits de salle
@@ -68,39 +81,58 @@ class ScreeningController extends Controller
                 ->first();
 
             if ($existingScreening) {
+                Log::warning('[ScreeningStore] Conflit détecté', [
+                    'date' => $request->date,
+                    'time' => $request->time,
+                    'room' => $request->room
+                ]);
                 return response()->json([
                     'message' => 'Conflit d\'horaire',
                     'error' => 'Cette salle est déjà réservée à cet horaire'
                 ], 409);
             }
 
+            Log::info('[ScreeningStore] Création de la projection', $request->all());
+
             $screening = Screening::create([
                 'documentary_id' => $request->documentaryId,
+                'title' => $documentary->title, // ← MAINTENANT $documentary EST DÉFINI
                 'date' => $request->date,
                 'time' => $request->time,
                 'room' => $request->room,
                 'is_published' => $request->isPublished ?? false
             ]);
 
+            // Recharger avec les relations
+            $screening->load('documentary');
+
             DB::commit();
+
+            Log::info('[ScreeningStore] Projection créée avec succès', [
+                'id' => $screening->id,
+                'documentary' => $screening->documentary->title
+            ]);
 
             return response()->json([
                 'message' => 'Projection créée avec succès',
                 'screening' => [
-                    'id' => $screening->id,
-                    'documentaryId' => $screening->documentary_id,
+                    'id' => (string) $screening->id,
+                    'documentaryId' => (string) $screening->documentary_id,
+                    'title' => $screening->title,
                     'date' => $screening->date->format('Y-m-d'),
                     'time' => $screening->time,
                     'room' => $screening->room,
-                    'isPublished' => $screening->is_published,
+                    'isPublished' => (bool) $screening->is_published,
                 ]
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
             
-            Log::error('Erreur lors de la création de la projection: ' . $e->getMessage());
-            
+            Log::error('[ScreeningStore] Erreur serveur: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);         
+
             return response()->json([
                 'message' => 'Erreur serveur lors de la création de la projection',
                 'error' => $e->getMessage()
@@ -108,7 +140,7 @@ class ScreeningController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, int $id)
     {
         try {
             $screening = Screening::findOrFail($id);
@@ -134,8 +166,8 @@ class ScreeningController extends Controller
             return response()->json([
                 'message' => 'Projection mise à jour avec succès',
                 'screening' => [
-                    'id' => $screening->id,
-                    'isPublished' => $screening->is_published
+                    'id' => (string) $screening->id,
+                    'isPublished' => (bool) $screening->is_published
                 ]
             ]);
 
@@ -149,7 +181,7 @@ class ScreeningController extends Controller
         }
     }
 
-    public function destroy($id)
+    public function destroy(int $id)
     {
         try {
             $screening = Screening::findOrFail($id);
@@ -179,14 +211,14 @@ class ScreeningController extends Controller
             
             $formattedScreenings = $screenings->map(function($screening) {
                 return [
-                    'id' => $screening->id,
-                    'documentaryId' => $screening->documentary_id,
+                    'id' =>(string) $screening->id,
+                    'documentaryId' =>(string) $screening->documentary_id,
                     'date' => $screening->date->format('Y-m-d'),
                     'time' => $screening->time,
                     'room' => $screening->room,
                     'isPublished' => $screening->is_published,
                     'documentary' => [
-                        'id' => $screening->documentary->id,
+                        'id' => (string) $screening->documentary->id,
                         'code' => $screening->documentary->code,
                         'title' => $screening->documentary->title,
                         'subject' => $screening->documentary->subject,

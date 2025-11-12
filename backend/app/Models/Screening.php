@@ -12,6 +12,7 @@ class Screening extends Model
 
     protected $fillable = [
         'documentary_id',
+        'title',
         'date',
         'time',
         'room',
