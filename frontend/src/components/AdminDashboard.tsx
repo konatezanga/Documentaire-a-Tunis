@@ -102,7 +102,7 @@ export const AdminDashboard: React.FC = () => {
 
     try {
       const token = localStorage.getItem("docatunis_token");
-      const res = await fetch(`http://localhost:8000/api/users${id}`, {
+      const res = await fetch(`http://localhost:8000/api/users/${id}`, {
         method: "DELETE",
         headers: { 
           Authorization: `Bearer ${token}` 
@@ -270,7 +270,7 @@ export const AdminDashboard: React.FC = () => {
                           <Button
                             size="icon"
                             variant="ghost"
-                            onClick={() => handleDeleteUser(user.id, `${user.firstName} ${user.lastName}`)}
+                            onClick={() => handleDeleteUser(user.id.toString(), `${user.firstName} ${user.lastName}`)}
                             className="text-[#A62C21] hover:bg-[#A62C21]/10"
                           >
                             <Trash2 className="w-4 h-4" />
