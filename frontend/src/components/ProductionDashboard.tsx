@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
@@ -18,8 +18,18 @@ import {
 import { Badge } from './ui/badge';
 
 export const ProductionDashboard: React.FC = () => {
-  const { documentaries, screenings, addScreening, updateScreening, deleteScreening } = useData();
+  const { 
+    documentaries, 
+    screenings, 
+    addScreening, 
+    updateScreening, 
+    deleteScreening,
+    fetchScreenings,
+    fetchDocumentaries 
+  } = useData();
+  
   const [isAdding, setIsAdding] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     documentaryId: '',
     date: '',
@@ -34,6 +44,22 @@ export const ProductionDashboard: React.FC = () => {
     'Salle Sidi Bou Said',
     'Salle Sousse'
   ];
+
+  // Charger les données au montage du composant
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await Promise.all([
+          fetchDocumentaries(),
+          fetchScreenings()
+        ]);
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+      }
+    };
+
+    loadData();
+  }, [fetchDocumentaries, fetchScreenings]);
 
   const resetForm = () => {
     setFormData({
@@ -54,63 +80,96 @@ export const ProductionDashboard: React.FC = () => {
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
 
-    if (!formData.documentaryId || !formData.date || !formData.time || !formData.room) {
-      toast.error('Erreur', {
-        description: 'Veuillez remplir tous les champs',
-        className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
-      });
-      return;
-    }
-
-    // Check for conflicts
-    if (checkConflict(formData.date, formData.time, formData.room)) {
-      toast.error('Conflit d\'horaire', {
-        description: 'Cette salle est déjà réservée à cet horaire',
-        className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
-      });
-      return;
-    }
-
-    addScreening({
-      ...formData,
-      isPublished: false
-    });
-
-    toast.success('Projection ajoutée', {
-      description: 'La projection a été planifiée avec succès',
-      className: 'bg-[#0E0E0E] border-[#C69B3A] text-[#F5F2E7]',
-    });
-
-    resetForm();
-  };
-
-  const handlePublishToggle = (id: string, currentStatus: boolean) => {
-    updateScreening(id, { isPublished: !currentStatus });
-    toast.success(
-      currentStatus ? 'Projection dépubliée' : 'Projection publiée',
-      {
-        description: currentStatus
-          ? 'La projection n\'est plus visible publiquement'
-          : 'La projection est maintenant visible publiquement',
-        className: 'bg-[#0E0E0E] border-[#C69B3A] text-[#F5F2E7]',
+    try {
+      if (!formData.documentaryId || !formData.date || !formData.time || !formData.room) {
+        toast.error('Erreur', {
+          description: 'Veuillez remplir tous les champs',
+          className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
+        });
+        return;
       }
-    );
+
+      // Vérifier les conflits
+      if (checkConflict(formData.date, formData.time, formData.room)) {
+        toast.error('Conflit d\'horaire', {
+          description: 'Cette salle est déjà réservée à cet horaire',
+          className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
+        });
+        return;
+      }
+
+      // Appel réel à l'API via le contexte
+      await addScreening({
+        documentaryId: formData.documentaryId,
+        date: formData.date,
+        time: formData.time,
+        room: formData.room,
+        isPublished: false
+      });
+
+      toast.success('Projection ajoutée', {
+        description: 'La projection a été planifiée avec succès',
+        className: 'bg-[#0E0E0E] border-[#C69B3A] text-[#F5F2E7]',
+      });
+
+      resetForm();
+      
+    } catch (error: any) {
+      console.error('Erreur lors de l\'ajout:', error);
+      toast.error('Erreur', {
+        description: error.message || 'Erreur lors de l\'ajout de la projection',
+        className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette projection ?')) {
-      deleteScreening(id);
-      toast.success('Projection supprimée', {
-        className: 'bg-[#0E0E0E] border-[#C69B3A] text-[#F5F2E7]',
+  const handlePublishToggle = async (id: string | number, currentStatus: boolean) => {
+    try {
+      await updateScreening(String(id), { isPublished: !currentStatus });
+      
+      toast.success(
+        currentStatus ? 'Projection dépubliée' : 'Projection publiée',
+        {
+          description: currentStatus
+            ? 'La projection n\'est plus visible publiquement'
+            : 'La projection est maintenant visible publiquement',
+          className: 'bg-[#0E0E0E] border-[#C69B3A] text-[#F5F2E7]',
+        }
+      );
+    } catch (error: any) {
+      console.error('Erreur lors de la publication:', error);
+      toast.error('Erreur', {
+        description: error.message || 'Erreur lors de la modification',
+        className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
       });
     }
   };
 
-  const getDocumentaryTitle = (id: string) => {
-    const doc = documentaries.find(d => d.id === id);
+  const handleDelete = async (id: string | number) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette projection ?')) {
+      try {
+        await deleteScreening(String(id));
+        toast.success('Projection supprimée', {
+          className: 'bg-[#0E0E0E] border-[#C69B3A] text-[#F5F2E7]',
+        });
+      } catch (error: any) {
+        console.error('Erreur lors de la suppression:', error);
+        toast.error('Erreur', {
+          description: error.message || 'Erreur lors de la suppression',
+          className: 'bg-[#0E0E0E] border-[#A62C21] text-[#F5F2E7]',
+        });
+      }
+    }
+  };
+
+  const getDocumentaryTitle = (id: string | number) => {
+    const doc = documentaries.find(d => String(d.id) === String(id));
     return doc ? doc.title : 'Film inconnu';
   };
 
@@ -171,13 +230,17 @@ export const ProductionDashboard: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-[#F5F2E7]">Documentaire *</Label>
-                <Select value={formData.documentaryId} onValueChange={(value) => setFormData({ ...formData, documentaryId: value })}>
+                <Select 
+                  value={formData.documentaryId} 
+                  onValueChange={(value) => setFormData({ ...formData, documentaryId: value })}
+                  disabled={isLoading}
+                >
                   <SelectTrigger className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7]">
                     <SelectValue placeholder="Sélectionner un documentaire" />
                   </SelectTrigger>
                   <SelectContent className="bg-[#1B2430] border-[#C69B3A]/30 text-[#F5F2E7]">
                     {documentaries.map((doc) => (
-                      <SelectItem key={doc.id} value={doc.id}>
+                      <SelectItem key={String(doc.id)} value={String(doc.id)}>
                         {doc.title} ({doc.code})
                       </SelectItem>
                     ))}
@@ -194,6 +257,7 @@ export const ProductionDashboard: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                     className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7]"
                     required
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -205,12 +269,17 @@ export const ProductionDashboard: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                     className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7]"
                     required
+                    disabled={isLoading}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-[#F5F2E7]">Salle *</Label>
-                  <Select value={formData.room} onValueChange={(value) => setFormData({ ...formData, room: value })}>
+                  <Select 
+                    value={formData.room} 
+                    onValueChange={(value) => setFormData({ ...formData, room: value })}
+                    disabled={isLoading}
+                  >
                     <SelectTrigger className="bg-[#0E0E0E]/50 border-[#C69B3A]/30 text-[#F5F2E7]">
                       <SelectValue placeholder="Sélectionner une salle" />
                     </SelectTrigger>
@@ -229,15 +298,17 @@ export const ProductionDashboard: React.FC = () => {
                 <Button
                   type="submit"
                   className="bg-[#C69B3A] text-[#0E0E0E] hover:bg-[#d4a855] glow-gold-hover"
+                  disabled={isLoading}
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Ajouter la projection
+                  {isLoading ? 'Ajout en cours...' : 'Ajouter la projection'}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={resetForm}
                   className="border-[#C69B3A]/30 text-[#F5F2E7] hover:bg-[#C69B3A]/10"
+                  disabled={isLoading}
                 >
                   Annuler
                 </Button>
@@ -282,7 +353,7 @@ export const ProductionDashboard: React.FC = () => {
                   {screenings
                     .sort((a, b) => new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime())
                     .map((screening) => (
-                      <TableRow key={screening.id} className="border-[#C69B3A]/10 hover:bg-[#C69B3A]/5">
+                      <TableRow key={String(screening.id)} className="border-[#C69B3A]/10 hover:bg-[#C69B3A]/5">
                         <TableCell className="text-[#F5F2E7]">
                           {getDocumentaryTitle(screening.documentaryId)}
                         </TableCell>
@@ -303,6 +374,7 @@ export const ProductionDashboard: React.FC = () => {
                               variant="ghost"
                               onClick={() => handlePublishToggle(screening.id, screening.isPublished)}
                               className="text-[#C69B3A] hover:bg-[#C69B3A]/10"
+                              disabled={isLoading}
                             >
                               {screening.isPublished ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </Button>
@@ -311,6 +383,7 @@ export const ProductionDashboard: React.FC = () => {
                               variant="ghost"
                               onClick={() => handleDelete(screening.id)}
                               className="text-[#A62C21] hover:bg-[#A62C21]/10"
+                              disabled={isLoading}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
