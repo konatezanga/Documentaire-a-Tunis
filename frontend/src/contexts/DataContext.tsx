@@ -388,6 +388,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const addScreening = async (screeningData: any) => {
     try {
       const token = localStorage.getItem("docatunis_token");
+      console.log('[addScreening] Début - Token:', !!token);
+      console.log('[addScreening] Données envoyées:', screeningData);
       
       const response = await fetch('http://localhost:8000/api/screenings', {
         method: 'POST',
@@ -398,17 +400,41 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify(screeningData),
       });
 
+      console.log('[addScreening] Statut réponse:', response.status);
+      console.log('[addScreening] Headers réponse:', response.headers);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erreur lors de l\'ajout de la projection');
+        let errorMessage = `Erreur ${response.status} lors de l'ajout de la projection`;
+        
+        try {
+          const errorData = await response.json();
+          console.error('[addScreening] Erreur détaillée:', errorData);
+          
+          if (errorData.errors) {
+            const validationErrors = Object.entries(errorData.errors)
+              .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+              .join('; ');
+            errorMessage = `Erreurs de validation: ${validationErrors}`;
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (jsonError) {
+          const text = await response.text();
+          console.error('[addScreening] Réponse texte:', text);
+          errorMessage = `Erreur serveur: ${text.substring(0, 200)}`;
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
+      console.log('[addScreening] Réponse réussie:', data);
+      
       setScreenings((prev: Screening[]) => [...prev, data.screening]);
       return data;
       
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error('[addScreening] Erreur complète:', error);
       throw error;
     }
   };
